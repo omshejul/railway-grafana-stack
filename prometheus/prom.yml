@@ -46,3 +46,4 @@ scrape_configs:
         labels:
           project: 'amul-stock-checker'
           environment: 'production'
+          service: 'log-gateway'
