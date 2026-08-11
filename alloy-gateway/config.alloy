@@ -1,0 +1,81 @@
+otelcol.auth.bearer "amul_stock_checker" {
+  token = sys.env("AMUL_STOCK_CHECKER_OTLP_TOKEN")
+}
+
+otelcol.receiver.otlp "logs" {
+  http {
+    endpoint = "127.0.0.1:4318"
+    auth = otelcol.auth.bearer.amul_stock_checker.handler
+  }
+
+  output {
+    logs = [otelcol.processor.filter.allowed_services.input]
+  }
+}
+
+otelcol.processor.filter "allowed_services" {
+  error_mode = "ignore"
+
+  logs {
+    log_record = [
+      `resource.attributes["service.name"] != "amul-stock-checker-web" and resource.attributes["service.name"] != "amul-stock-checker-api"`,
+    ]
+  }
+
+  output {
+    logs = [otelcol.processor.transform.trusted_labels.input]
+  }
+}
+
+otelcol.processor.transform "trusted_labels" {
+  error_mode = "ignore"
+
+  log_statements {
+    context = "resource"
+    statements = [
+      `set(resource.attributes["project_name"], "amul-stock-checker")`,
+      `set(resource.attributes["environment_name"], "production")`,
+      `set(resource.attributes["service_name"], "web") where resource.attributes["service.name"] == "amul-stock-checker-web"`,
+      `set(resource.attributes["service_name"], "api") where resource.attributes["service.name"] == "amul-stock-checker-api"`,
+      `set(resource.attributes["loki.resource.labels"], "project_name,service_name,environment_name")`,
+      `delete_key(resource.attributes, "user.email")`,
+      `delete_key(resource.attributes, "user.phone")`,
+      `delete_key(resource.attributes, "enduser.id")`,
+    ]
+  }
+
+  log_statements {
+    context = "log"
+    statements = [
+      `delete_key(log.attributes, "authorization")`,
+      `delete_key(log.attributes, "cookie")`,
+      `delete_key(log.attributes, "http.request.header.authorization")`,
+      `delete_key(log.attributes, "http.request.header.cookie")`,
+      `delete_key(log.attributes, "url.full")`,
+      `delete_key(log.attributes, "url.query")`,
+    ]
+  }
+
+  output {
+    logs = [otelcol.processor.batch.logs.input]
+  }
+}
+
+otelcol.processor.batch "logs" {
+  timeout = "1s"
+  send_batch_size = 256
+
+  output {
+    logs = [otelcol.exporter.loki.logs.input]
+  }
+}
+
+otelcol.exporter.loki "logs" {
+  forward_to = [loki.write.logs.receiver]
+}
+
+loki.write "logs" {
+  endpoint {
+    url = "http://loki.railway.internal:3100/loki/api/v1/push"
+  }
+}
