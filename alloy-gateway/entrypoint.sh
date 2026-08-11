@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-/usr/local/bin/alloy run --server.http.listen-addr=127.0.0.1:12345 /etc/alloy/config.alloy &
+/usr/local/bin/alloy run --server.http.listen-addr=0.0.0.0:12345 /etc/alloy/config.alloy &
 alloy_pid=$!
 printf '%s' "$alloy_pid" > /tmp/alloy.pid
 
