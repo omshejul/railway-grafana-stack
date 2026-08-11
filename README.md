@@ -2,6 +2,85 @@
 
 [![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/template/8TLSQD?referralCode=IFlm92)
 
+## Shared deployment
+
+This repository backs the standalone Railway project named `Grafana`. It is a
+shared observability service, not a component of PetTech. Applications identify
+themselves with OpenTelemetry resource attributes and Prometheus labels such as
+`project`, `environment`, and `service`.
+
+The deployed components are pinned to these versions:
+
+| Component | Version |
+|---|---|
+| Grafana | `13.1.3` |
+| Loki | `3.7.6` |
+| Prometheus | `v3.13.2` |
+| Tempo | `2.9.4` |
+| gcx | `1.0.0` |
+| Locomotive | `sha256:7381f8c5dfd7004a5ffef0ef08f75c05955504e921ffdafef397a21cd49e66a0` |
+| Resend relay Node runtime | `24.19.0-alpine3.24` |
+| Slack relay Node runtime | `24.19.0-alpine3.24` |
+
+Tempo is intentionally pinned to `2.9.4` because this template's configuration
+is not compatible with newer Tempo releases without a configuration migration.
+
+### CLI workflow
+
+`gcx` is installed and authenticated with the context `grafana`. Common queries:
+
+```sh
+gcx logs query '{project_name="PetTech"}' --since 30m
+gcx metrics query 'up{project="pettech"}'
+gcx traces query '{ resource.service.name = "pettech-api" }' --since 30m
+gcx alert rules list
+gcx alert contact-points list
+```
+
+The default alert policy routes to the contact point named `Grafana`. The
+private webhook relay converts Grafana's payload to Slack Block Kit and calls
+Slack `chat.postMessage`. It also sends a Sentry-like HTML email from
+`alerts@theom.app` through Resend's HTTPS API. The relay queries private Loki
+for the latest matching error, then uses its trace ID to retrieve the exception
+message and stack trace from Tempo. The separate SMTP-to-Resend relay remains
+available as a fallback for Grafana's native email integration.
+`LOKI_QUERY_URL` defaults to
+`http://loki.railway.internal:3100/loki/api/v1/query_range` and
+`TEMPO_QUERY_URL` defaults to
+`http://tempo.railway.internal:3200/api/traces`. Both relays stay private inside
+the shared Railway project.
+
+Application errors are classified from explicit error severity, structured
+exception fields, nonzero failure counters, or strong crash signatures. Do not
+use a generic substring search for `error`: it incorrectly classifies fields
+such as `unexpected_errors=0`. The version-controlled Grafana API payload is at
+`grafana/alerting/application-error-rule.json`. Apply it with:
+
+```sh
+gcx --context grafana api /api/v1/provisioning/alert-rules/efuvaeei1l0qoc \
+  -X PUT -d @grafana/alerting/application-error-rule.json
+```
+
+Known third-party logging defects may be excluded only after verifying the
+exact source and adding a regression fixture. For example, MCP SDK session
+cleanup currently writes `Terminating session: None` to stderr even though the
+SDK records it at INFO.
+
+Railway and Locomotive may derive severity from stdout versus stderr. Uvicorn
+writes normal `INFO:` lifecycle messages to stderr, so explicit message level
+overrides transport-derived severity. Keep exclusions narrow and fixture-tested.
+
+### Adding another project
+
+1. Export application traces to the public Tempo OTLP HTTP `/v1/traces`
+   endpoint and set `service.name`, `project`, and `environment` resource
+   attributes.
+2. Add the application's metrics endpoint to `prometheus/prom.yml`, including
+   `project`, `environment`, and `service` labels.
+3. Add its Railway service IDs to Locomotive's `TRAIN` value if Railway logs
+   should be forwarded to Loki.
+4. Query the new labels through `gcx` before creating dashboards or alerts.
+
 ## What is this template
 
 This template deploys a complete Grafana observability stack on Railway with just one click! The stack includes four integrated services:

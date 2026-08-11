@@ -1,24 +1,78 @@
 global:
-  scrape_interval: 15s # Default scrape interval
+  scrape_interval: 15s
 
 scrape_configs:
   - job_name: 'prometheus'
     static_configs:
       - targets: ['localhost:9090']
+        labels:
+          project: 'grafana'
+          environment: 'production'
+          service: 'prometheus'
 
-  # - job_name: 'example_api'
-  #   scheme: http
-  #   static_configs:
-  #     - targets: ['example_api:9091']
+  - job_name: 'grafana'
+    static_configs:
+      - targets: ['grafana.railway.internal:3000']
+        labels:
+          project: 'grafana'
+          environment: 'production'
+          service: 'grafana'
 
-  #  ? TODO: add your services here
-  # - job_name: 'your-job-name'
-  #   scheme: https
-  #   static_configs:
-  #     - targets: ['URL_GOES_HERE']
-  #   basic_auth:
-  #     username: HTTP_AUTH_USERNAME_GOES_HERE
-  #     password: HTTP_AUTH_PASSWORD_GOES_HERE
+  - job_name: 'loki'
+    static_configs:
+      - targets: ['loki.railway.internal:3100']
+        labels:
+          project: 'grafana'
+          environment: 'production'
+          service: 'loki'
+
+  - job_name: 'tempo'
+    static_configs:
+      - targets: ['tempo.railway.internal:3200']
+        labels:
+          project: 'grafana'
+          environment: 'production'
+          service: 'tempo'
+
+  - job_name: 'pettech-api'
+    scheme: https
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['api-furryfur.up.railway.app:443']
+        labels:
+          project: 'pettech'
+          environment: 'production'
+          service: 'api'
+
+  - job_name: 'pettech-web'
+    scheme: https
+    metrics_path: /api/metrics
+    static_configs:
+      - targets: ['furryfur.dog:443']
+        labels:
+          project: 'pettech'
+          environment: 'production'
+          service: 'web'
+
+  - job_name: 'cronbolt-api'
+    scheme: https
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['api-production-14e2.up.railway.app:443']
+        labels:
+          project: 'cronbolt'
+          environment: 'production'
+          service: 'api'
+
+  - job_name: 'cronbolt-web'
+    scheme: https
+    metrics_path: /api/metrics
+    static_configs:
+      - targets: ['web-production-8bf31.up.railway.app:443']
+        labels:
+          project: 'cronbolt'
+          environment: 'production'
+          service: 'web'
 
   - job_name: 'amul-stock-checker-api'
     scheme: http
