@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import {
@@ -42,6 +43,25 @@ test("classifies only explicit error signals", () => {
     classifyErrorEvent({ severity: "error" }, "request failed"),
     { signalKind: "structured_error", matchReason: "error severity" },
   );
+  assert.equal(
+    classifyErrorEvent({ severity: "error" }, "Not Found: /robots.txt"),
+    undefined,
+  );
+  assert.equal(
+    classifyErrorEvent({ severity: "error" }, "Not Found: /api/widgets/42"),
+    undefined,
+  );
+  assert.deepEqual(
+    classifyErrorEvent({ severity: "error" }, "DatabaseError: connection refused"),
+    { signalKind: "structured_error", matchReason: "error severity" },
+  );
+  assert.deepEqual(
+    classifyErrorEvent(
+      { severity: "error", error_type: "ResolverFailure" },
+      "Not Found: /api/widgets/42",
+    ),
+    { signalKind: "structured_error", matchReason: "error_type is present" },
+  );
   assert.deepEqual(
     classifyErrorEvent({ level: "info", error_type: "CheckoutError" }, "INFO: checkout failed"),
     { signalKind: "structured_error", matchReason: "error_type is present" },
@@ -50,6 +70,20 @@ test("classifies only explicit error signals", () => {
     classifyErrorEvent({}, "Traceback (most recent call last):"),
     { signalKind: "unstructured_crash", matchReason: "strong unstructured crash pattern" },
   );
+});
+
+test("Grafana rule excludes ordinary Django 404 responses only from severity branches", async () => {
+  const rule = JSON.parse(await readFile(
+    new URL("../grafana/alerting/application-error-rule.json", import.meta.url),
+    "utf8",
+  ));
+  const expression = rule.data.find(({ refId }) => refId === "A").model.expr;
+  const django404Exclusion = "Not Found: /[^[:space:]]*$";
+
+  assert.equal(expression.split(django404Exclusion).length - 1, 3);
+  assert.match(expression, /\| error_type != ""/);
+  assert.match(expression, /\| exception != ""/);
+  assert.match(expression, /traceback/);
 });
 
 test("does not enrich from a harmless error counter", async () => {

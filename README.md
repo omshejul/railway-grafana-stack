@@ -68,7 +68,10 @@ SDK records it at INFO.
 
 Railway and Locomotive may derive severity from stdout versus stderr. Uvicorn
 writes normal `INFO:` lifecycle messages to stderr, so explicit message level
-overrides transport-derived severity. Keep exclusions narrow and fixture-tested.
+overrides transport-derived severity. Django also writes ordinary
+`Not Found: /path` 404 responses through `django.request`; these remain in Loki
+but do not page as application errors. Keep exclusions narrow and
+fixture-tested. Alert separately on sustained 404 rates when that signal matters.
 
 ### Adding another project
 
