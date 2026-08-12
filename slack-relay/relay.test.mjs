@@ -26,6 +26,8 @@ test("classifies only explicit error signals", () => {
     "INFO:     Received SIGTERM, exiting.",
     "StreamableHTTP session manager started",
     "StreamableHTTP session manager shutting down",
+    "2026-08-12 07:52:07.952 UTC [101] LOG:  checkpoint starting: time",
+    "2026-08-12 07:52:08.268 UTC [101] LOG:  checkpoint complete: wrote 3 buffers",
   ];
   for (const line of negatives) {
     assert.equal(classifyErrorEvent({ level: "info", severity: "info" }, line), undefined, line);
@@ -51,8 +53,22 @@ test("classifies only explicit error signals", () => {
     classifyErrorEvent({ severity: "error" }, "Not Found: /api/widgets/42"),
     undefined,
   );
+  assert.equal(
+    classifyErrorEvent(
+      { severity: "error" },
+      "2026-08-12 07:52:08.268 UTC [101] LOG:  checkpoint complete: wrote 3 buffers",
+    ),
+    undefined,
+  );
   assert.deepEqual(
     classifyErrorEvent({ severity: "error" }, "DatabaseError: connection refused"),
+    { signalKind: "structured_error", matchReason: "error severity" },
+  );
+  assert.deepEqual(
+    classifyErrorEvent(
+      { severity: "error" },
+      "2026-08-12 07:52:09.000 UTC [101] ERROR:  could not write to file",
+    ),
     { signalKind: "structured_error", matchReason: "error severity" },
   );
   assert.deepEqual(
@@ -72,15 +88,17 @@ test("classifies only explicit error signals", () => {
   );
 });
 
-test("Grafana rule excludes ordinary Django 404 responses only from severity branches", async () => {
+test("Grafana rule excludes verified transport misclassifications only from severity branches", async () => {
   const rule = JSON.parse(await readFile(
     new URL("../grafana/alerting/application-error-rule.json", import.meta.url),
     "utf8",
   ));
   const expression = rule.data.find(({ refId }) => refId === "A").model.expr;
   const django404Exclusion = "Not Found: /[^[:space:]]*$";
+  const postgresLogExclusion = "UTC \\\\[[0-9]+\\\\] LOG:[[:space:]]";
 
   assert.equal(expression.split(django404Exclusion).length - 1, 3);
+  assert.equal(expression.split(postgresLogExclusion).length - 1, 3);
   assert.match(expression, /\| error_type != ""/);
   assert.match(expression, /\| exception != ""/);
   assert.match(expression, /traceback/);

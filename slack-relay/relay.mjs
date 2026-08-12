@@ -6,7 +6,7 @@ const MAX_EVENT_NAME = 180;
 const ERROR_SEVERITIES = new Set(["error", "critical", "fatal", "panic"]);
 const FAILURE_COUNTER_PATTERN = /\b(unexpected_errors|error_count|failure_count|errors)=([0-9]+)\b/gi;
 const CRASH_PATTERN = /(traceback \(most recent call last\)|uncaught (error|exception)|unhandled (exception|rejection)|panic:|fatal:|segmentation fault|out of memory|(^|\s)(error|exception):)/i;
-const TRANSPORT_MISCLASSIFIED_NON_ERROR_PATTERN = /^(INFO:\s+|Terminating session: None$|StreamableHTTP session manager (started|shutting down)$|Not Found: \/\S*$)/;
+const TRANSPORT_MISCLASSIFIED_NON_ERROR_PATTERN = /^(INFO:\s+|Terminating session: None$|StreamableHTTP session manager (started|shutting down)$|Not Found: \/\S*$|\d{4}-\d{2}-\d{2} \S+ UTC \[\d+\] LOG:\s)/;
 const TRACE_ID_PATTERN = /^[0-9a-f]{32}$/i;
 const SPAN_ID_PATTERN = /^[0-9a-f]{16}$/i;
 const EVENT_METADATA_KEYS = [

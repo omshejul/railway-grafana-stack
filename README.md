@@ -72,6 +72,10 @@ overrides transport-derived severity. Django also writes ordinary
 `Not Found: /path` 404 responses through `django.request`; these remain in Loki
 but do not page as application errors. Keep exclusions narrow and
 fixture-tested. Alert separately on sustained 404 rates when that signal matters.
+PostgreSQL also emits routine server messages such as checkpoint activity to
+stderr with its own embedded `LOG:` level. Railway's transport-derived error
+label is ignored only for that anchored PostgreSQL `LOG:` format. Embedded
+`ERROR:`, `FATAL:`, and `PANIC:` records remain alertable.
 
 ### Adding another project
 
