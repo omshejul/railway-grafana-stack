@@ -101,39 +101,3 @@ scrape_configs:
           project: 'amul-stock-checker'
           environment: 'production'
           service: 'log-gateway'
-
-  - job_name: 'bookkeeping-api'
-    scheme: https
-    metrics_path: /api/metrics/api
-    authorization:
-      credentials_file: /etc/prometheus/secrets/bookkeeping-metrics-token
-    static_configs:
-      - targets: ['bookkeeping.theom.app:443']
-        labels:
-          project: 'bookkeeping'
-          environment: 'production'
-          service: 'api'
-
-  - job_name: 'bookkeeping-worker'
-    scheme: https
-    metrics_path: /api/metrics/worker
-    authorization:
-      credentials_file: /etc/prometheus/secrets/bookkeeping-metrics-token
-    static_configs:
-      - targets: ['bookkeeping.theom.app:443']
-        labels:
-          project: 'bookkeeping'
-          environment: 'production'
-          service: 'worker'
-
-  - job_name: 'bookkeeping-web'
-    scheme: https
-    metrics_path: /api/metrics/web
-    authorization:
-      credentials_file: /etc/prometheus/secrets/bookkeeping-metrics-token
-    static_configs:
-      - targets: ['bookkeeping.theom.app:443']
-        labels:
-          project: 'bookkeeping'
-          environment: 'production'
-          service: 'web'
