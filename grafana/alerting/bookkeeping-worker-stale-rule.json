@@ -1,0 +1,67 @@
+{
+  "uid": "bookkeeping-worker-stale",
+  "orgID": 1,
+  "folderUID": "shared-observability",
+  "ruleGroup": "Workers",
+  "title": "Bookkeeping worker poll is stale",
+  "condition": "B",
+  "data": [
+    {
+      "refId": "A",
+      "queryType": "",
+      "relativeTimeRange": { "from": 600, "to": 0 },
+      "datasourceUid": "grafana_prometheus",
+      "model": {
+        "datasource": { "type": "prometheus", "uid": "grafana_prometheus" },
+        "editorMode": "code",
+        "expr": "time() - bookkeeping_worker_last_poll_started_timestamp_seconds{project=\"bookkeeping\", environment=\"production\", service=\"worker\"}",
+        "instant": true,
+        "intervalMs": 1000,
+        "legendFormat": "poll age",
+        "maxDataPoints": 43200,
+        "range": false,
+        "refId": "A"
+      }
+    },
+    {
+      "refId": "B",
+      "queryType": "",
+      "relativeTimeRange": { "from": 0, "to": 0 },
+      "datasourceUid": "__expr__",
+      "model": {
+        "conditions": [
+          {
+            "evaluator": { "params": [30], "type": "gt" },
+            "operator": { "type": "and" },
+            "query": { "params": ["B"] },
+            "reducer": { "params": [], "type": "last" },
+            "type": "query"
+          }
+        ],
+        "datasource": { "type": "__expr__", "uid": "__expr__" },
+        "expression": "A",
+        "intervalMs": 1000,
+        "maxDataPoints": 43200,
+        "refId": "B",
+        "type": "threshold"
+      }
+    }
+  ],
+  "noDataState": "OK",
+  "execErrState": "KeepLast",
+  "for": "0s",
+  "keep_firing_for": "0s",
+  "annotations": {
+    "summary": "Bookkeeping worker poll is stale",
+    "description": "The Bookkeeping worker has not started a backend poll for {{ $values.A.Value }} seconds."
+  },
+  "labels": {
+    "environment": "production",
+    "project": "bookkeeping",
+    "service": "worker",
+    "severity": "critical",
+    "signal_kind": "worker_stale",
+    "team": "platform"
+  },
+  "isPaused": false
+}

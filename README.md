@@ -103,6 +103,19 @@ routes are live at `metrics.bookkeeping.theom.app`. Verify both targets with:
 gcx metrics query 'up{project="bookkeeping"}'
 ```
 
+The shared availability rule already alerts when either target is down. After
+the worker metrics are healthy, create its two project-specific rules:
+
+```sh
+gcx --context grafana api /api/v1/provisioning/alert-rules \
+  -X POST -d @grafana/alerting/bookkeeping-worker-stale-rule.json
+gcx --context grafana api /api/v1/provisioning/alert-rules \
+  -X POST -d @grafana/alerting/bookkeeping-worker-failure-rule.json
+```
+
+Use `PUT /api/v1/provisioning/alert-rules/<uid>` with the same committed file
+for later updates.
+
 ## What is this template
 
 This template deploys a complete Grafana observability stack on Railway with just one click! The stack includes four integrated services:
