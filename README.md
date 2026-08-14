@@ -88,6 +88,22 @@ label is ignored only for that anchored PostgreSQL `LOG:` format. Embedded
    should be forwarded to Loki.
 4. Query the new labels through `gcx` before creating dashboards or alerts.
 
+### Bookkeeping metrics credential
+
+The Bookkeeping API, worker, and web targets share one project-specific bearer
+credential. The Prometheus entrypoint requires the sealed Railway variable
+`BOOKKEEPING_METRICS_TOKEN`, writes it to
+`/etc/prometheus/secrets/bookkeeping-metrics-token` with mode `0400`, unsets the
+environment variable, and then starts Prometheus. The three scrape jobs read the
+credential through `authorization.credentials_file`. No credential belongs in
+`prom.yml` or an image layer.
+
+Deploy this Prometheus config only after all three protected application routes
+are live. Verify `up{project="bookkeeping"}` returns one series with value `1`
+for `api`, `worker`, and `web`. To roll back, deploy the previous Prometheus
+artifact and remove `BOOKKEEPING_METRICS_TOKEN` only after no active config
+references its credential file.
+
 ## What is this template
 
 This template deploys a complete Grafana observability stack on Railway with just one click! The stack includes four integrated services:
