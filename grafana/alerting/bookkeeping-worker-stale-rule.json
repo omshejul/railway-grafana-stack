@@ -3,7 +3,7 @@
   "orgID": 1,
   "folderUID": "shared-observability",
   "ruleGroup": "Workers",
-  "title": "Bookkeeping worker poll is stale",
+  "title": "Worker poll is stale",
   "condition": "B",
   "data": [
     {
@@ -14,7 +14,7 @@
       "model": {
         "datasource": { "type": "prometheus", "uid": "grafana_prometheus" },
         "editorMode": "code",
-        "expr": "time() - bookkeeping_worker_last_poll_started_timestamp_seconds{project=\"bookkeeping\", environment=\"production\", service=\"worker\"}",
+        "expr": "time() - bookkeeping_worker_last_poll_started_timestamp_seconds{project=~\"bookkeeping|tds\", environment=\"production\", service=\"worker\"}",
         "instant": true,
         "intervalMs": 1000,
         "legendFormat": "poll age",
@@ -52,12 +52,11 @@
   "for": "0s",
   "keep_firing_for": "0s",
   "annotations": {
-    "summary": "Bookkeeping worker poll is stale",
-    "description": "The Bookkeeping worker has not started a backend poll for {{ $values.A.Value }} seconds."
+    "summary": "{{ $labels.project }} worker poll is stale",
+    "description": "The {{ $labels.project }} worker has not started a backend poll for {{ $values.A.Value }} seconds."
   },
   "labels": {
     "environment": "production",
-    "project": "bookkeeping",
     "service": "worker",
     "severity": "critical",
     "signal_kind": "worker_stale",

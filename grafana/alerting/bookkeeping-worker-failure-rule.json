@@ -3,7 +3,7 @@
   "orgID": 1,
   "folderUID": "shared-observability",
   "ruleGroup": "Workers",
-  "title": "Bookkeeping worker poll failed",
+  "title": "Worker poll failed",
   "condition": "B",
   "data": [
     {
@@ -14,7 +14,7 @@
       "model": {
         "datasource": { "type": "prometheus", "uid": "grafana_prometheus" },
         "editorMode": "code",
-        "expr": "sum(increase(bookkeeping_worker_poll_attempts_total{project=\"bookkeeping\", environment=\"production\", service=\"worker\", outcome=\"failed\"}[5m]))",
+        "expr": "sum by (project, environment, service) (increase(bookkeeping_worker_poll_attempts_total{project=~\"bookkeeping|tds\", environment=\"production\", service=\"worker\", outcome=\"failed\"}[5m]))",
         "instant": true,
         "intervalMs": 1000,
         "legendFormat": "failed polls",
@@ -52,12 +52,11 @@
   "for": "0s",
   "keep_firing_for": "0s",
   "annotations": {
-    "summary": "Bookkeeping worker poll failed",
-    "description": "The Bookkeeping worker recorded {{ $values.A.Value }} failed poll(s) in the last five minutes."
+    "summary": "{{ $labels.project }} worker poll failed",
+    "description": "The {{ $labels.project }} worker recorded {{ $values.A.Value }} failed poll(s) in the last five minutes."
   },
   "labels": {
     "environment": "production",
-    "project": "bookkeeping",
     "service": "worker",
     "severity": "error",
     "signal_kind": "worker_failure",
