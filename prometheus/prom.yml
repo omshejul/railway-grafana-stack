@@ -127,3 +127,16 @@ scrape_configs:
           project: 'bookkeeping'
           environment: 'production'
           service: 'worker'
+
+  - job_name: 'tds-worker'
+    scheme: https
+    metrics_path: /tds-worker
+    basic_auth:
+      username: prometheus
+      password_file: /etc/prometheus/secrets/bookkeeping-metrics-password
+    static_configs:
+      - targets: ['metrics.bookkeeping.theom.app:443']
+        labels:
+          project: 'tds'
+          environment: 'production'
+          service: 'worker'
