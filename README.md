@@ -88,6 +88,35 @@ label is ignored only for that anchored PostgreSQL `LOG:` format. Embedded
    should be forwarded to Loki.
 4. Query the new labels through `gcx` before creating dashboards or alerts.
 
+### Bookkeeping and TDS metrics credential
+
+The Railway `Prometheus` service requires `BOOKKEEPING_METRICS_PASSWORD`.
+Its entrypoint writes that value to a mode `0400` credential file, unsets the
+environment variable, and starts Prometheus. The Bookkeeping and TDS scrape
+jobs use that file for HTTP basic authentication, so no credential is committed
+or baked into the image.
+
+Deploy this configuration only after the authenticated `/caddy`, `/worker`,
+and `/tds-worker` routes are live at `metrics.bookkeeping.theom.app`. Verify
+all targets with:
+
+```sh
+gcx metrics query 'up{project=~"bookkeeping|tds"}'
+```
+
+The shared availability rule alerts when a target is down. The two worker
+rules cover both projects:
+
+```sh
+gcx --context grafana api /api/v1/provisioning/alert-rules \
+  -X POST -d @grafana/alerting/bookkeeping-worker-stale-rule.json
+gcx --context grafana api /api/v1/provisioning/alert-rules \
+  -X POST -d @grafana/alerting/bookkeeping-worker-failure-rule.json
+```
+
+Use `PUT /api/v1/provisioning/alert-rules/<uid>` with the same committed file
+for later updates.
+
 ## What is this template
 
 This template deploys a complete Grafana observability stack on Railway with just one click! The stack includes four integrated services:
