@@ -1,4 +1,4 @@
-ARG VERSION=3.4
+ARG VERSION=3.7.6
 
 FROM grafana/loki:${VERSION}
 

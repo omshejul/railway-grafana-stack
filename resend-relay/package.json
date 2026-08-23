@@ -1,0 +1,10 @@
+{
+  "name": "grafana-resend-relay",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "mailparser": "3.9.15",
+    "smtp-server": "3.19.3"
+  }
+}
