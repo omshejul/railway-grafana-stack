@@ -59,6 +59,10 @@ such as `unexpected_errors=0`. The version-controlled Grafana API payload is at
 ```sh
 gcx --context grafana api /api/v1/provisioning/alert-rules/efuvaeei1l0qoc \
   -X PUT -d @grafana/alerting/application-error-rule.json
+gcx --context grafana api /api/v1/provisioning/alert-rules \
+  -X POST -d @grafana/alerting/telemetry-export-failure-rule.json
+gcx --context grafana api /api/v1/provisioning/alert-rules \
+  -X POST -d @grafana/alerting/django-unauthorized-rate-rule.json
 ```
 
 Known third-party logging defects may be excluded only after verifying the
@@ -76,6 +80,18 @@ PostgreSQL also emits routine server messages such as checkpoint activity to
 stderr with its own embedded `LOG:` level. Railway's transport-derived error
 label is ignored only for that anchored PostgreSQL `LOG:` format. Embedded
 `ERROR:`, `FATAL:`, and `PANIC:` records remain alertable.
+
+Django's exact `Unauthorized: /path` response log does not page as an
+application exception. A separate warning rule alerts only when a service
+records more than 10 such responses in five minutes for five continuous
+minutes. OpenTelemetry span exporter failures also use a dedicated warning
+rule, so trace delivery problems stay visible without being presented as
+application failures.
+
+Known synthetic verification events are excluded only by their exact fixture
+signatures. Next.js malformed Server Action IDs are excluded only for the
+observed bot values `0`, `1`, `x`, and `action`; valid-looking action IDs remain
+alertable.
 
 ### Adding another project
 

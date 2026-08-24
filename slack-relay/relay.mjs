@@ -6,7 +6,8 @@ const MAX_EVENT_NAME = 180;
 const ERROR_SEVERITIES = new Set(["error", "critical", "fatal", "panic"]);
 const FAILURE_COUNTER_PATTERN = /\b(unexpected_errors|error_count|failure_count|errors)=([0-9]+)\b/gi;
 const CRASH_PATTERN = /(traceback \(most recent call last\)|uncaught (error|exception)|unhandled (exception|rejection)|panic:|fatal:|segmentation fault|out of memory|(^|\s)(error|exception):)/i;
-const TRANSPORT_MISCLASSIFIED_NON_ERROR_PATTERN = /^(INFO:\s+|Terminating session: None$|StreamableHTTP session manager (started|shutting down)$|Not Found: \/\S*$|\d{4}-\d{2}-\d{2} \S+ UTC \[\d+\] LOG:\s)/;
+const KNOWN_BENIGN_EVENT_PATTERN = /^(Error: The Server Reference ID did not match the expected format\. Received "(0|1|x|action)"\.|Dual observability verification \S+|Grafana error alert verification \S+|MobileCoverageVerification_[0-9_]+|diagnostic-connectivity-check)$|"client_error_type"\s*:\s*"observability_test"/;
+const TRANSPORT_MISCLASSIFIED_NON_ERROR_PATTERN = /^(INFO:\s+|Waiting up to 2 seconds$|Press Ctrl-C to quit$|Sentry is attempting to send [1-9][0-9]* pending events$|\[\d{4}-\d{2}-\d{2} \S+ \+\d{4}\] \[\d+\] \[INFO\]\s+|\s+at ignore-listed frames$|Read more: https:\/\/nextjs\.org\/docs\/messages\/failed-to-find-server-action$|Terminating session: None$|StreamableHTTP session manager (started|shutting down)$|Not Found: \/\S*$|Unauthorized: \/\S*$|\d{4}-\d{2}-\d{2} \S+ UTC \[\d+\] LOG:\s)/;
 const TRACE_ID_PATTERN = /^[0-9a-f]{32}$/i;
 const SPAN_ID_PATTERN = /^[0-9a-f]{16}$/i;
 const EVENT_METADATA_KEYS = [
@@ -85,6 +86,8 @@ function nonzeroFailureCounter(line) {
 }
 
 export function classifyErrorEvent(metadata = {}, line = "") {
+  if (KNOWN_BENIGN_EVENT_PATTERN.test(String(line ?? "").trim())) return undefined;
+
   for (const key of ["error_type", "exception", "analysis_failure"]) {
     if (String(metadata[key] ?? "").trim()) {
       return { signalKind: "structured_error", matchReason: `${key} is present` };

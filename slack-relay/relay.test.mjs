@@ -24,6 +24,12 @@ test("classifies only explicit error signals", () => {
     "Terminating session: None",
     "INFO:     Application startup complete.",
     "INFO:     Received SIGTERM, exiting.",
+    "Waiting up to 2 seconds",
+    "Press Ctrl-C to quit",
+    "Sentry is attempting to send 2 pending events",
+    "[2026-08-23 12:57:16 +0000] [1] [INFO] Starting gunicorn 26.0.0",
+    "    at ignore-listed frames",
+    "Read more: https://nextjs.org/docs/messages/failed-to-find-server-action",
     "StreamableHTTP session manager started",
     "StreamableHTTP session manager shutting down",
     "2026-08-12 07:52:07.952 UTC [101] LOG:  checkpoint starting: time",
@@ -52,6 +58,45 @@ test("classifies only explicit error signals", () => {
   assert.equal(
     classifyErrorEvent({ severity: "error" }, "Not Found: /api/widgets/42"),
     undefined,
+  );
+  assert.equal(
+    classifyErrorEvent({ severity: "error" }, "Unauthorized: /api/v1/jobs"),
+    undefined,
+  );
+  assert.equal(
+    classifyErrorEvent(
+      { severity: "error" },
+      'Error: The Server Reference ID did not match the expected format. Received "x".',
+    ),
+    undefined,
+  );
+  assert.deepEqual(
+    classifyErrorEvent(
+      { severity: "error" },
+      'Error: The Server Reference ID did not match the expected format. Received "40f9a24c2e95d41a".',
+    ),
+    { signalKind: "structured_error", matchReason: "error severity" },
+  );
+  assert.equal(
+    classifyErrorEvent(
+      { severity: "error", error_type: "Error" },
+      "MobileCoverageVerification_20260811_1751",
+    ),
+    undefined,
+  );
+  assert.equal(
+    classifyErrorEvent(
+      { severity: "error" },
+      '{"message":"test","client_error_type":"observability_test"}',
+    ),
+    undefined,
+  );
+  assert.deepEqual(
+    classifyErrorEvent(
+      { severity: "error" },
+      "Failed to export span batch code: request timed out",
+    ),
+    { signalKind: "structured_error", matchReason: "error severity" },
   );
   assert.equal(
     classifyErrorEvent(
@@ -88,7 +133,7 @@ test("classifies only explicit error signals", () => {
   );
 });
 
-test("Grafana rule excludes verified transport misclassifications only from severity branches", async () => {
+test("Grafana rule narrowly excludes verified benign events", async () => {
   const rule = JSON.parse(await readFile(
     new URL("../grafana/alerting/application-error-rule.json", import.meta.url),
     "utf8",
@@ -96,12 +141,45 @@ test("Grafana rule excludes verified transport misclassifications only from seve
   const expression = rule.data.find(({ refId }) => refId === "A").model.expr;
   const django404Exclusion = "Not Found: /[^[:space:]]*$";
   const postgresLogExclusion = "UTC \\\\[[0-9]+\\\\] LOG:[[:space:]]";
+  const djangoUnauthorizedExclusion = "Unauthorized: /[^[:space:]]*$";
+  const exporterExclusion = "Failed to export span batch code:";
+  const gunicornInfoExclusion = "[INFO\\\\][[:space:]]+";
+  const sentryLifecycleExclusion = "Sentry is attempting to send [1-9][0-9]* pending events$";
+  const serverActionDocsExclusion = "Read more: https://nextjs.org/docs/messages/failed-to-find-server-action$";
+  const invalidServerActionExclusion = "Error: The Server Reference ID did not match the expected format\\. Received";
+  const syntheticVerificationExclusion = "MobileCoverageVerification_[0-9_]+$";
 
   assert.equal(expression.split(django404Exclusion).length - 1, 3);
   assert.equal(expression.split(postgresLogExclusion).length - 1, 3);
-  assert.match(expression, /\| error_type != ""/);
-  assert.match(expression, /\| exception != ""/);
+  assert.equal(expression.split(djangoUnauthorizedExclusion).length - 1, 3);
+  assert.equal(expression.split(exporterExclusion).length - 1, 3);
+  assert.equal(expression.split(gunicornInfoExclusion).length - 1, 3);
+  assert.equal(expression.split(sentryLifecycleExclusion).length - 1, 3);
+  assert.equal(expression.split(serverActionDocsExclusion).length - 1, 3);
+  assert.equal(expression.split(invalidServerActionExclusion).length - 1, 8);
+  assert.equal(expression.split(syntheticVerificationExclusion).length - 1, 8);
+  assert.match(expression, /\| error_type =~ "\.\+"/);
+  assert.match(expression, /\| exception =~ "\.\+"/);
+  assert.doesNotMatch(expression, /\| (error_type|exception|analysis_failure) != ""/);
   assert.match(expression, /traceback/);
+});
+
+test("Grafana routes downgraded signals to dedicated warning rules", async () => {
+  const telemetryRule = JSON.parse(await readFile(
+    new URL("../grafana/alerting/telemetry-export-failure-rule.json", import.meta.url),
+    "utf8",
+  ));
+  const unauthorizedRule = JSON.parse(await readFile(
+    new URL("../grafana/alerting/django-unauthorized-rate-rule.json", import.meta.url),
+    "utf8",
+  ));
+
+  assert.match(telemetryRule.data[0].model.expr, /\^Failed to export span batch code:/);
+  assert.equal(telemetryRule.labels.severity, "warning");
+  assert.ok(unauthorizedRule.data[0].model.expr.includes("^Unauthorized: /[^[:space:]]*$"));
+  assert.equal(unauthorizedRule.data[2].model.conditions[0].evaluator.params[0], 10);
+  assert.equal(unauthorizedRule.for, "5m");
+  assert.equal(unauthorizedRule.labels.severity, "warning");
 });
 
 test("does not enrich from a harmless error counter", async () => {
@@ -206,7 +284,7 @@ test("looks up the latest error event from Loki", async () => {
               stream: { error_type: "Error", error_source: "mobile" },
               values: [[
                 "1786470684228845716",
-                "MobileCoverageVerification_20260811_1751",
+                "Checkout failed",
               ]],
             }],
           },
@@ -214,7 +292,7 @@ test("looks up the latest error event from Loki", async () => {
       };
     },
   );
-  assert.equal(eventName, "MobileCoverageVerification_20260811_1751");
+  assert.equal(eventName, "Checkout failed");
 });
 
 test("keeps trace metadata from the latest Loki error", async () => {
@@ -375,13 +453,13 @@ test("keeps the event name on resolved alerts", async () => {
         data: {
           result: [{
             stream: { error_type: "Error" },
-            values: [["1786470684228845716", "MobileCoverageVerification_20260811_1751"]],
+            values: [["1786470684228845716", "Checkout failed"]],
           }],
         },
       }),
     }),
   );
-  assert.equal(enriched.alerts[0].annotations.event_name, "MobileCoverageVerification_20260811_1751");
+  assert.equal(enriched.alerts[0].annotations.event_name, "Checkout failed");
 });
 
 test("validates bearer tokens", () => {
