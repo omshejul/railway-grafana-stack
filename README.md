@@ -37,10 +37,12 @@ gcx alert rules list
 gcx alert contact-points list
 ```
 
-The default alert policy routes to the contact point named `Grafana`. The
-private webhook relay converts Grafana's payload to Slack Block Kit and calls
-Slack `chat.postMessage`. It also sends a Sentry-like HTML email from
-`alerts@theom.app` through Resend's HTTPS API. The relay queries private Loki
+The default alert policy routes to the contact point named `Grafana`. It waits
+two minutes, groups alerts by service, environment, severity, and signal kind,
+and repeats after twelve hours. The private webhook relay converts Grafana's
+payload to Slack Block Kit and calls Slack `chat.postMessage`. It sends email
+only for firing critical alerts. Resolved, warning, and error notifications stay
+in Slack. The relay queries private Loki
 for the latest matching error, then uses its trace ID to retrieve the exception
 message and stack trace from Tempo. The separate SMTP-to-Resend relay remains
 available as a fallback for Grafana's native email integration.
@@ -51,19 +53,21 @@ available as a fallback for Grafana's native email integration.
 the shared Railway project.
 
 Application errors are classified from explicit error severity, structured
-exception fields, nonzero failure counters, or strong crash signatures. Do not
+exception fields, nonzero failure counters, or strong crash signatures. The
+generic rule is a Slack-only burst warning. It requires more than four explicit
+signals in ten minutes for five continuous minutes. Do not
 use a generic substring search for `error`: it incorrectly classifies fields
-such as `unexpected_errors=0`. The version-controlled Grafana API payload is at
-`grafana/alerting/application-error-rule.json`. Apply it with:
+such as `unexpected_errors=0`. Apply all version-controlled rules and the
+notification policy with:
 
 ```sh
-gcx --context grafana api /api/v1/provisioning/alert-rules/efuvaeei1l0qoc \
-  -X PUT -d @grafana/alerting/application-error-rule.json
-gcx --context grafana api /api/v1/provisioning/alert-rules \
-  -X POST -d @grafana/alerting/telemetry-export-failure-rule.json
-gcx --context grafana api /api/v1/provisioning/alert-rules \
-  -X POST -d @grafana/alerting/django-unauthorized-rate-rule.json
+./scripts/apply-alerting.sh
 ```
+
+Amul Stock Checker pages only when the last successful catalog run is more than
+ten minutes old for five minutes. A failure-rate warning requires more than 20
+percent failures across at least 20 requests and must remain active for five
+minutes. Isolated upstream timeouts remain searchable in Loki without paging.
 
 Known third-party logging defects may be excluded only after verifying the
 exact source and adding a regression fixture. For example, MCP SDK session

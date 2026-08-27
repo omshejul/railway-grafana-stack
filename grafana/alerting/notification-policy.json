@@ -1,0 +1,18 @@
+{
+  "receiver": "Grafana",
+  "group_by": [
+    "grafana_folder",
+    "alertname",
+    "project",
+    "project_name",
+    "service_name",
+    "environment",
+    "environment_name",
+    "severity",
+    "signal_kind"
+  ],
+  "group_wait": "2m",
+  "group_interval": "10m",
+  "repeat_interval": "12h",
+  "provenance": "api"
+}

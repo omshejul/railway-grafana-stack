@@ -216,6 +216,16 @@ export function buildEmailMessage(payload, options = {}) {
   };
 }
 
+export function shouldSendEmail(payload) {
+  if (String(payload?.status ?? "firing").toLowerCase() !== "firing") return false;
+  const alerts = Array.isArray(payload?.alerts) ? payload.alerts : [];
+  return alerts.some((alert) => String(
+    alert?.labels?.severity
+      ?? payload?.commonLabels?.severity
+      ?? "",
+  ).toLowerCase() === "critical");
+}
+
 export async function postToResend(message, apiKey, fetchImpl = fetch) {
   const response = await fetchImpl("https://api.resend.com/emails", {
     method: "POST",

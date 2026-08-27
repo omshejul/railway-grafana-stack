@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildEmailMessage, postToResend } from "./email.mjs";
+import { buildEmailMessage, postToResend, shouldSendEmail } from "./email.mjs";
 
 const payload = {
   status: "firing",
@@ -71,4 +71,25 @@ test("posts the custom email through Resend", async () => {
     },
   );
   assert.equal(result.id, "email-123");
+});
+
+test("emails only firing critical alerts", () => {
+  const critical = {
+    ...payload,
+    alerts: [{
+      ...payload.alerts[0],
+      labels: { ...payload.alerts[0].labels, severity: "critical" },
+    }],
+  };
+
+  assert.equal(shouldSendEmail(critical), true);
+  assert.equal(shouldSendEmail({ ...critical, status: "resolved" }), false);
+  assert.equal(shouldSendEmail(payload), false);
+  assert.equal(shouldSendEmail({
+    ...payload,
+    alerts: [{
+      ...payload.alerts[0],
+      labels: { ...payload.alerts[0].labels, severity: "warning" },
+    }],
+  }), false);
 });

@@ -1,9 +1,9 @@
 {
-  "uid": "bookkeeping-worker-stale",
+  "uid": "amul-catalog-stale",
   "orgID": 1,
   "folderUID": "shared-observability",
-  "ruleGroup": "Workers",
-  "title": "Worker poll is stale",
+  "ruleGroup": "Amul Stock Checker",
+  "title": "Amul catalog data is stale",
   "condition": "B",
   "data": [
     {
@@ -14,10 +14,10 @@
       "model": {
         "datasource": { "type": "prometheus", "uid": "grafana_prometheus" },
         "editorMode": "code",
-        "expr": "(time() - bookkeeping_worker_last_poll_started_timestamp_seconds{project=~\"bookkeeping|tds\", environment=\"production\", service=\"worker\"}) and on (project, environment, service) (bookkeeping_worker_last_poll_started_timestamp_seconds{project=~\"bookkeeping|tds\", environment=\"production\", service=\"worker\"} > 0)",
+        "expr": "(time() - amul_stock_checker_last_successful_catalog_run_timestamp_seconds{project=\"amul-stock-checker\", environment=\"production\", service=\"api\"}) and on (project, environment, service) (amul_stock_checker_last_successful_catalog_run_timestamp_seconds{project=\"amul-stock-checker\", environment=\"production\", service=\"api\"} > 0)",
         "instant": true,
         "intervalMs": 1000,
-        "legendFormat": "poll age",
+        "legendFormat": "catalog age",
         "maxDataPoints": 43200,
         "range": false,
         "refId": "A"
@@ -29,15 +29,13 @@
       "relativeTimeRange": { "from": 0, "to": 0 },
       "datasourceUid": "__expr__",
       "model": {
-        "conditions": [
-          {
-            "evaluator": { "params": [30], "type": "gt" },
-            "operator": { "type": "and" },
-            "query": { "params": ["B"] },
-            "reducer": { "params": [], "type": "last" },
-            "type": "query"
-          }
-        ],
+        "conditions": [{
+          "evaluator": { "params": [600], "type": "gt" },
+          "operator": { "type": "and" },
+          "query": { "params": ["B"] },
+          "reducer": { "params": [], "type": "last" },
+          "type": "query"
+        }],
         "datasource": { "type": "__expr__", "uid": "__expr__" },
         "expression": "A",
         "intervalMs": 1000,
@@ -49,17 +47,18 @@
   ],
   "noDataState": "OK",
   "execErrState": "KeepLast",
-  "for": "2m",
-  "keep_firing_for": "2m",
+  "for": "5m",
+  "keep_firing_for": "5m",
   "annotations": {
-    "summary": "{{ $labels.project }} worker poll is stale",
-    "description": "The {{ $labels.project }} worker has not started a backend poll for {{ $values.A.Value }} seconds."
+    "summary": "Amul catalog data is stale",
+    "description": "The Amul Stock Checker has not completed a successful catalog run for {{ $values.A.Value }} seconds."
   },
   "labels": {
     "environment": "production",
-    "service": "worker",
+    "project": "amul-stock-checker",
+    "service": "api",
     "severity": "critical",
-    "signal_kind": "worker_stale",
+    "signal_kind": "catalog_stale",
     "team": "platform"
   },
   "isPaused": false
