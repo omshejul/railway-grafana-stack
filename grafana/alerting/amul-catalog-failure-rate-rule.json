@@ -1,0 +1,65 @@
+{
+  "uid": "amul-catalog-failure-rate",
+  "orgID": 1,
+  "folderUID": "shared-observability",
+  "ruleGroup": "Amul Stock Checker",
+  "title": "Amul catalog failure rate is high",
+  "condition": "B",
+  "data": [
+    {
+      "refId": "A",
+      "queryType": "",
+      "relativeTimeRange": { "from": 1800, "to": 0 },
+      "datasourceUid": "grafana_prometheus",
+      "model": {
+        "datasource": { "type": "prometheus", "uid": "grafana_prometheus" },
+        "editorMode": "code",
+        "expr": "(100 * sum by (project, environment, service) (increase(amul_stock_checker_catalog_requests_total{project=\"amul-stock-checker\", environment=\"production\", service=\"api\", status=\"error\"}[15m])) / clamp_min(sum by (project, environment, service) (increase(amul_stock_checker_catalog_requests_total{project=\"amul-stock-checker\", environment=\"production\", service=\"api\"}[15m])), 1)) and on (project, environment, service) (sum by (project, environment, service) (increase(amul_stock_checker_catalog_requests_total{project=\"amul-stock-checker\", environment=\"production\", service=\"api\"}[15m])) >= 20)",
+        "instant": true,
+        "intervalMs": 1000,
+        "legendFormat": "catalog failure rate",
+        "maxDataPoints": 43200,
+        "range": false,
+        "refId": "A"
+      }
+    },
+    {
+      "refId": "B",
+      "queryType": "",
+      "relativeTimeRange": { "from": 0, "to": 0 },
+      "datasourceUid": "__expr__",
+      "model": {
+        "conditions": [{
+          "evaluator": { "params": [20], "type": "gt" },
+          "operator": { "type": "and" },
+          "query": { "params": ["B"] },
+          "reducer": { "params": [], "type": "last" },
+          "type": "query"
+        }],
+        "datasource": { "type": "__expr__", "uid": "__expr__" },
+        "expression": "A",
+        "intervalMs": 1000,
+        "maxDataPoints": 43200,
+        "refId": "B",
+        "type": "threshold"
+      }
+    }
+  ],
+  "noDataState": "OK",
+  "execErrState": "KeepLast",
+  "for": "5m",
+  "keep_firing_for": "5m",
+  "annotations": {
+    "summary": "Amul catalog failure rate is high",
+    "description": "The Amul catalog request failure rate was {{ $values.A.Value }} percent over fifteen minutes, across at least 20 attempts, and stayed above 20 percent for five minutes."
+  },
+  "labels": {
+    "environment": "production",
+    "project": "amul-stock-checker",
+    "service": "api",
+    "severity": "warning",
+    "signal_kind": "catalog_failure_rate",
+    "team": "platform"
+  },
+  "isPaused": false
+}

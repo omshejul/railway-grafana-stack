@@ -140,10 +140,10 @@ test("Grafana rule narrowly excludes verified benign events", async () => {
   ));
   const expression = rule.data.find(({ refId }) => refId === "A").model.expr;
   const django404Exclusion = "Not Found: /[^[:space:]]*$";
-  const postgresLogExclusion = "UTC \\\\[[0-9]+\\\\] LOG:[[:space:]]";
+  const postgresLogExclusion = "UTC \\[[0-9]+\\] LOG:[[:space:]]";
   const djangoUnauthorizedExclusion = "Unauthorized: /[^[:space:]]*$";
   const exporterExclusion = "Failed to export span batch code:";
-  const gunicornInfoExclusion = "[INFO\\\\][[:space:]]+";
+  const gunicornInfoExclusion = "\\[INFO\\][[:space:]]+";
   const sentryLifecycleExclusion = "Sentry is attempting to send [1-9][0-9]* pending events$";
   const serverActionDocsExclusion = "Read more: https://nextjs.org/docs/messages/failed-to-find-server-action$";
   const invalidServerActionExclusion = "Error: The Server Reference ID did not match the expected format\\. Received";
@@ -180,6 +180,91 @@ test("Grafana routes downgraded signals to dedicated warning rules", async () =>
   assert.equal(unauthorizedRule.data[2].model.conditions[0].evaluator.params[0], 10);
   assert.equal(unauthorizedRule.for, "5m");
   assert.equal(unauthorizedRule.labels.severity, "warning");
+});
+
+test("Grafana waits for a sustained application error burst", async () => {
+  const rule = JSON.parse(await readFile(
+    new URL("../grafana/alerting/application-error-rule.json", import.meta.url),
+    "utf8",
+  ));
+  const expression = rule.data.find(({ refId }) => refId === "A").model.expr;
+  const threshold = rule.data.find(({ refId }) => refId === "C")
+    .model.conditions[0].evaluator.params[0];
+
+  assert.match(expression, /\[10m\]/);
+  assert.match(expression, /Client diagnostic reported/);
+  assert.match(expression, /Transient error .*exporting span batch/);
+  assert.equal(threshold, 4);
+  assert.equal(rule.for, "5m");
+  assert.equal(rule.labels.severity, "warning");
+});
+
+test("worker alerts ignore restarts and require sustained failure ratios", async () => {
+  const staleRule = JSON.parse(await readFile(
+    new URL("../grafana/alerting/bookkeeping-worker-stale-rule.json", import.meta.url),
+    "utf8",
+  ));
+  const failureRule = JSON.parse(await readFile(
+    new URL("../grafana/alerting/bookkeeping-worker-failure-rule.json", import.meta.url),
+    "utf8",
+  ));
+  const staleExpression = staleRule.data.find(({ refId }) => refId === "A").model.expr;
+  const failureExpression = failureRule.data.find(({ refId }) => refId === "A").model.expr;
+  const failureThreshold = failureRule.data.find(({ refId }) => refId === "B")
+    .model.conditions[0].evaluator.params[0];
+
+  assert.match(staleExpression, /last_poll_started_timestamp_seconds.*> 0/s);
+  assert.equal(staleRule.for, "2m");
+  assert.match(failureExpression, /clamp_min/);
+  assert.match(failureExpression, /\[15m\]/);
+  assert.match(failureExpression, />= 100/);
+  assert.equal(failureThreshold, 20);
+  assert.equal(failureRule.for, "5m");
+  assert.equal(failureRule.labels.severity, "warning");
+});
+
+test("Amul alerts page on stale success and warn on sustained failure ratio", async () => {
+  const staleRule = JSON.parse(await readFile(
+    new URL("../grafana/alerting/amul-catalog-stale-rule.json", import.meta.url),
+    "utf8",
+  ));
+  const failureRule = JSON.parse(await readFile(
+    new URL("../grafana/alerting/amul-catalog-failure-rate-rule.json", import.meta.url),
+    "utf8",
+  ));
+
+  assert.match(staleRule.data[0].model.expr, /last_successful_catalog_run_timestamp_seconds/);
+  assert.equal(staleRule.data[1].model.conditions[0].evaluator.params[0], 600);
+  assert.equal(staleRule.for, "5m");
+  assert.equal(staleRule.labels.severity, "critical");
+  assert.match(failureRule.data[0].model.expr, /catalog_requests_total/);
+  assert.match(failureRule.data[0].model.expr, /clamp_min/);
+  assert.match(failureRule.data[0].model.expr, />= 20/);
+  assert.equal(failureRule.data[1].model.conditions[0].evaluator.params[0], 20);
+  assert.equal(failureRule.for, "5m");
+  assert.equal(failureRule.labels.severity, "warning");
+});
+
+test("notification policy batches by actionable labels", async () => {
+  const policy = JSON.parse(await readFile(
+    new URL("../grafana/alerting/notification-policy.json", import.meta.url),
+    "utf8",
+  ));
+
+  assert.deepEqual(policy.group_by, [
+    "grafana_folder",
+    "alertname",
+    "project",
+    "project_name",
+    "service_name",
+    "environment",
+    "environment_name",
+    "severity",
+    "signal_kind",
+  ]);
+  assert.equal(policy.group_wait, "2m");
+  assert.equal(policy.group_interval, "10m");
+  assert.equal(policy.repeat_interval, "12h");
 });
 
 test("does not enrich from a harmless error counter", async () => {

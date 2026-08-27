@@ -1,6 +1,7 @@
 import { createServer } from "node:http";
 
-import { buildEmailMessage, postToResend } from "./email.mjs";
+import { createDeliveryTracker, deliverNotification } from "./delivery.mjs";
+import { buildEmailMessage, postToResend, shouldSendEmail } from "./email.mjs";
 import { buildSlackMessage, enrichPayloadWithTelemetry, isAuthorized, postToSlack } from "./relay.mjs";
 
 const port = Number(process.env.PORT ?? "8080");
@@ -16,6 +17,7 @@ const lokiQueryUrl = process.env.LOKI_QUERY_URL
 const tempoQueryUrl = process.env.TEMPO_QUERY_URL
   ?? "http://tempo.railway.internal:3200/api/traces";
 const emailEnabled = Boolean(resendApiKey || alertEmailFrom || alertEmailTo);
+const deliveryTracker = createDeliveryTracker();
 
 if (!slackToken) throw new Error("SLACK_BOT_TOKEN is required");
 if (!channelId) throw new Error("SLACK_CHANNEL_ID is required");
@@ -66,20 +68,25 @@ const server = createServer((request, response) => {
           }));
         }
         const slackMessage = buildSlackMessage(enrichedPayload, { channelId, mentionUserId });
-        const slackDelivery = postToSlack(slackMessage, slackToken);
-        const emailDelivery = emailEnabled
-          ? postToResend(buildEmailMessage(enrichedPayload, {
+        const emailMessage = emailEnabled && shouldSendEmail(enrichedPayload)
+          ? buildEmailMessage(enrichedPayload, {
             from: alertEmailFrom,
             to: alertEmailTo,
-          }), resendApiKey)
-          : Promise.resolve(undefined);
-        const [slackResult, emailResult] = await Promise.all([slackDelivery, emailDelivery]);
+          })
+          : undefined;
+        const delivery = await deliverNotification(enrichedPayload, {
+          tracker: deliveryTracker,
+          slackMessage,
+          emailMessage,
+          sendSlack: (message) => postToSlack(message, slackToken),
+          sendEmail: (message) => postToResend(message, resendApiKey),
+        });
         console.log(JSON.stringify({
           level: "info",
           message: "Grafana notification sent",
-          channel: slackResult.channel,
-          slack_ts: slackResult.ts,
-          resend_id: emailResult?.id,
+          channel: delivery.slack?.channel,
+          slack_ts: delivery.slack?.ts,
+          resend_id: delivery.email?.id,
           status: payload.status,
         }));
         respond(response, 200, { ok: true });

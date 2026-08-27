@@ -3,7 +3,7 @@
   "orgID": 1,
   "folderUID": "shared-observability",
   "ruleGroup": "Workers",
-  "title": "Worker poll failed",
+  "title": "Worker poll failure rate high",
   "condition": "B",
   "data": [
     {
@@ -14,7 +14,7 @@
       "model": {
         "datasource": { "type": "prometheus", "uid": "grafana_prometheus" },
         "editorMode": "code",
-        "expr": "sum by (project, environment, service) (increase(bookkeeping_worker_poll_attempts_total{project=~\"bookkeeping|tds\", environment=\"production\", service=\"worker\", outcome=\"failed\"}[5m]))",
+        "expr": "(100 * sum by (project, environment, service) (increase(bookkeeping_worker_poll_attempts_total{project=~\"bookkeeping|tds\", environment=\"production\", service=\"worker\", outcome=\"failed\"}[15m])) / clamp_min(sum by (project, environment, service) (increase(bookkeeping_worker_poll_attempts_total{project=~\"bookkeeping|tds\", environment=\"production\", service=\"worker\"}[15m])), 1)) and on (project, environment, service) (sum by (project, environment, service) (increase(bookkeeping_worker_poll_attempts_total{project=~\"bookkeeping|tds\", environment=\"production\", service=\"worker\"}[15m])) >= 100)",
         "instant": true,
         "intervalMs": 1000,
         "legendFormat": "failed polls",
@@ -31,7 +31,7 @@
       "model": {
         "conditions": [
           {
-            "evaluator": { "params": [0], "type": "gt" },
+            "evaluator": { "params": [20], "type": "gt" },
             "operator": { "type": "and" },
             "query": { "params": ["B"] },
             "reducer": { "params": [], "type": "last" },
@@ -49,17 +49,17 @@
   ],
   "noDataState": "OK",
   "execErrState": "KeepLast",
-  "for": "0s",
-  "keep_firing_for": "0s",
+  "for": "5m",
+  "keep_firing_for": "5m",
   "annotations": {
-    "summary": "{{ $labels.project }} worker poll failed",
-    "description": "The {{ $labels.project }} worker recorded {{ $values.A.Value }} failed poll(s) in the last five minutes."
+    "summary": "{{ $labels.project }} worker poll failure rate is high",
+    "description": "The {{ $labels.project }} worker failure rate was {{ $values.A.Value }} percent over fifteen minutes, across at least 100 attempts, and stayed above 20 percent for five minutes."
   },
   "labels": {
     "environment": "production",
     "service": "worker",
-    "severity": "error",
-    "signal_kind": "worker_failure",
+    "severity": "warning",
+    "signal_kind": "worker_failure_rate",
     "team": "platform"
   },
   "isPaused": false

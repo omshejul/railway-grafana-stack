@@ -5,7 +5,7 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 
-COPY email.mjs relay.mjs server.mjs ./
+COPY delivery.mjs email.mjs relay.mjs server.mjs ./
 
 USER node
 CMD ["node", "server.mjs"]

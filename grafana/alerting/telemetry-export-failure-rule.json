@@ -9,12 +9,12 @@
     {
       "refId": "A",
       "queryType": "range",
-      "relativeTimeRange": { "from": 600, "to": 0 },
+      "relativeTimeRange": { "from": 1200, "to": 0 },
       "datasourceUid": "grafana_lokiq",
       "model": {
         "datasource": { "type": "loki", "uid": "grafana_lokiq" },
         "editorMode": "code",
-        "expr": "sum by (project_name, service_name, environment_name) (count_over_time({project_name!=\"\"} |~ `^Failed to export span batch code:` [5m]))",
+        "expr": "sum by (project_name, service_name, environment_name) (count_over_time({project_name!=\"\"} |~ `^Failed to export span batch code:|^Transient error Bad Gateway encountered while exporting span batch, retrying in [0-9.]+s\\.` [10m]))",
         "intervalMs": 1000,
         "legendFormat": "{{project_name}} / {{service_name}}",
         "maxDataPoints": 43200,
@@ -45,7 +45,7 @@
       "model": {
         "conditions": [
           {
-            "evaluator": { "params": [0], "type": "gt" },
+            "evaluator": { "params": [4], "type": "gt" },
             "operator": { "type": "and" },
             "query": { "params": ["C"] },
             "reducer": { "params": [], "type": "last" },
@@ -63,11 +63,11 @@
   ],
   "noDataState": "OK",
   "execErrState": "Error",
-  "for": "0s",
-  "keep_firing_for": "0s",
+  "for": "5m",
+  "keep_firing_for": "5m",
   "annotations": {
     "summary": "Telemetry export failed in {{ $labels.project_name }} / {{ $labels.service_name }}",
-    "description": "Grafana detected {{ $values.B.Value }} failed span export batch(es) for {{ $labels.project_name }} / {{ $labels.service_name }} in the last five minutes. Application behavior may be healthy while trace coverage is degraded."
+    "description": "Grafana detected {{ $values.B.Value }} failed span export batches for {{ $labels.project_name }} / {{ $labels.service_name }} in the last ten minutes, and the count stayed above four for five minutes. Application behavior may be healthy while trace coverage is degraded."
   },
   "labels": {
     "severity": "warning",
