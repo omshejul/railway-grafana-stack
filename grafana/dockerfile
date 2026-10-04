@@ -3,6 +3,7 @@ ARG VERSION=13.1.3
 FROM grafana/grafana:${VERSION}
 
 ENV GF_DATABASE_WAL=true
+ENV GF_PLUGINS_DISABLE_PLUGINS=grafana-simple-json-datasource,grafana-piechart-panel,grafana-worldmap-panel
 
 USER root
 RUN apk add --no-cache sqlite
