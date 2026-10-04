@@ -58,7 +58,7 @@ scrape_configs:
     scheme: https
     metrics_path: /metrics
     static_configs:
-      - targets: ['api-production-14e2.up.railway.app:443']
+      - targets: []
         labels:
           project: 'cronbolt'
           environment: 'production'
@@ -68,7 +68,7 @@ scrape_configs:
     scheme: https
     metrics_path: /api/metrics
     static_configs:
-      - targets: ['web-production-8bf31.up.railway.app:443']
+      - targets: []
         labels:
           project: 'cronbolt'
           environment: 'production'

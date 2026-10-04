@@ -27,6 +27,18 @@ is not compatible with newer Tempo releases without a configuration migration.
 
 ### CLI workflow
 
+Grafana enables SQLite WAL before startup to prevent reads and background writes
+from blocking each other. Grafana 13.1.3's SQLite URL converter emits an invalid
+`_journal_mode` pragma, so `GF_DATABASE_WAL=true` alone does not enable WAL.
+The startup script sets the journal mode with SQLite directly and then runs the
+standard Grafana entrypoint. Verify a built image with
+`python3 grafana/test-wal.py IMAGE_NAME`.
+
+Cronbolt's Prometheus jobs currently have empty target lists because the project
+was stopped on October 4, 2026. To resume monitoring, restore
+`api-production-14e2.up.railway.app:443` and
+`web-production-8bf31.up.railway.app:443` after restarting those services.
+
 `gcx` is installed and authenticated with the context `grafana`. Common queries:
 
 ```sh
