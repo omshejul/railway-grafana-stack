@@ -34,6 +34,11 @@ The startup script sets the journal mode with SQLite directly and then runs the
 standard Grafana entrypoint. Verify a built image with
 `python3 grafana/test-wal.py IMAGE_NAME`.
 
+The unused Simple JSON, legacy pie chart, and world map plugins are disabled
+because Grafana no longer supports their Angular implementation. Keep the
+Railway `GF_INSTALL_PLUGINS` value at `grafana-clock-panel` so startup does not
+install those obsolete plugins again.
+
 Cronbolt's Prometheus jobs currently have empty target lists because the project
 was stopped on October 4, 2026. To resume monitoring, restore
 `api-production-14e2.up.railway.app:443` and
@@ -186,7 +191,7 @@ This template is perfect for teams who need a comprehensive observability soluti
 | `GF_SECURITY_ADMIN_USER` | Username for the Grafana admin account | Required input |
 | `GF_SECURITY_ADMIN_PASSWORD` | Password for the Grafana admin account | Auto-generated secure string |
 | `GF_DEFAULT_INSTANCE_NAME` | Name of your Grafana instance | `Grafana on Railway` |
-| `GF_INSTALL_PLUGINS` | Comma-separated list of Grafana plugins to install | `grafana-simple-json-datasource,grafana-piechart-panel,grafana-worldmap-panel,grafana-clock-panel` |
+| `GF_INSTALL_PLUGINS` | Comma-separated list of Grafana plugins to install | `grafana-clock-panel` |
 
 ### Internal Service URLs
 
